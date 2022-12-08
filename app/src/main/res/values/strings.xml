@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">xd</string>
+    <string name="textview">选择模拟程序xd：</string>
+    <string name="tv_system_mock_position_status">系统是否开启模拟定位</string>
+    <string name="btn_start_mock">开始模拟</string>
+    <string name="btn_stop_mock">停止模拟</string>
+    <string name="tv_provider">提供者</string>
+    <string name="tv_latitude">纬度</string>
+    <string name="tv_longitude">经度</string>
+    <string name="tv_altitude">高度</string>
+    <string name="tv_bearing">方向</string>
+    <string name="tv_speed">速度</string>
+    <string name="tv_accuracy">精度</string>
+
+    <string name="tv_time">时间</string>
+    <string name="input_latitude">填写纬度</string>
+    <string name="input_longitude">填写经度</string>
+    <string name="btn_SaveLoc">保存当前位置</string>
+</resources>
