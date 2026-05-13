@@ -1,7 +1,6 @@
 # Add project specific ProGuard rules here.
 
--keep class com.example.xd.** { *; }
--keepclassmembers class com.example.xd.MockLocation { *; }
+-keep class com.mockgps.app.** { *; }
 
 -dontwarn com.google.gson.**
 -keep class com.google.gson.** { *; }

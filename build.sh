@@ -1,12 +1,10 @@
 #!/bin/bash
-
-# XD Mock GPS Build Script
-# 用于构建多版本Release APK
+# MockGPS 构建脚本
 
 set -e
 
 echo "=========================================="
-echo "XD Mock GPS - Release Build Script"
+echo "MockGPS 构建脚本"
 echo "=========================================="
 
 # 检查Android SDK
@@ -15,36 +13,36 @@ if [ -z "$ANDROID_HOME" ]; then
         export ANDROID_HOME="$HOME/Android/Sdk"
     elif [ -d "/opt/android-sdk" ]; then
         export ANDROID_HOME="/opt/android-sdk"
-    else
-        echo "Error: Android SDK not found. Please set ANDROID_HOME"
-        exit 1
     fi
 fi
 
-echo "Using ANDROID_HOME: $ANDROID_HOME"
-
-# 检查Gradle
-if [ ! -f "./gradlew" ]; then
-    echo "Error: gradlew not found"
+if [ -z "$ANDROID_HOME" ] || [ ! -d "$ANDROID_HOME" ]; then
+    echo "错误: 未找到Android SDK"
+    echo "请设置 ANDROID_HOME 环境变量"
     exit 1
 fi
 
-chmod +x ./gradlew
+echo "使用 ANDROID_HOME: $ANDROID_HOME"
+
+# 检查Java
+if [ -z "$JAVA_HOME" ]; then
+    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+fi
+
+echo "使用 JAVA_HOME: $JAVA_HOME"
 
 # 清理并构建
 echo ""
-echo "Building Release APK..."
+echo "开始构建Release APK..."
 echo ""
 
 ./gradlew clean assembleRelease
 
 echo ""
 echo "=========================================="
-echo "Build completed!"
+echo "构建完成!"
 echo "=========================================="
 echo ""
-echo "APK files are located at:"
-echo "app/build/outputs/apk/release/"
+echo "APK文件位于: app/build/outputs/apk/release/"
 echo ""
-echo "To list all APKs:"
-ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "No APKs found"
+ls -la app/build/outputs/apk/release/ 2>/dev/null || echo "APK未生成"

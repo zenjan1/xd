@@ -1,65 +1,33 @@
 <resources>
-    <string name="app_name">XD Mock GPS</string>
-
-    <string name="textview">选择模拟程序xd：</string>
-    <string name="tv_system_mock_position_status">系统是否开启模拟定位</string>
-    <string name="btn_start_mock">开始模拟</string>
-    <string name="btn_stop_mock">停止模拟</string>
-    <string name="tv_provider">提供者</string>
-    <string name="tv_latitude">纬度</string>
-    <string name="tv_longitude">经度</string>
-    <string name="tv_altitude">高度</string>
-    <string name="tv_bearing">方向</string>
-    <string name="tv_speed">速度</string>
-    <string name="tv_accuracy">精度</string>
-    <string name="tv_time">时间</string>
-    <string name="input_latitude">填写纬度</string>
-    <string name="input_longitude">填写经度</string>
-    <string name="btn_SaveLoc">保存位置</string>
-    <string name="btn_manage_locations">管理位置</string>
-    <string name="btn_trajectory">轨迹模拟</string>
-    <string name="tv_trajectory_status">状态</string>
-    <string name="tv_point_count">点数</string>
-
-    <string name="status_disabled">未开启</string>
-    <string name="status_enabled">已开启</string>
+    <string name="app_name">Mock GPS</string>
+    <string name="status_ready">就绪</string>
+    <string name="status_active">模拟中</string>
     <string name="status_stopped">已停止</string>
-    <string name="single_point_mode">单点模式</string>
-    <string name="trajectory_running">轨迹运行中</string>
-
-    <string name="save_location">保存位置</string>
-    <string name="manage_locations">管理保存的位置</string>
-    <string name="delete_location">删除位置</string>
-    <string name="trajectory_mode">轨迹模拟</string>
-
-    <string name="location_name_hint">位置名称</string>
-    <string name="coordinates_format">坐标: %.8f, %.8f</string>
-    <string name="center_latitude">中心纬度</string>
-    <string name="center_longitude">中心经度</string>
-    <string name="radius_meters">半径(米)</string>
+    <string name="btn_start">开始模拟</string>
+    <string name="btn_stop">停止模拟</string>
+    <string name="hint_latitude">纬度</string>
+    <string name="hint_longitude">经度</string>
+    <string name="label_location_info">当前位置信息</string>
+    <string name="label_tools">工具</string>
+    <string name="btn_save">保存</string>
+    <string name="btn_load">加载</string>
+    <string name="btn_joystick">摇杆控制</string>
+    <string name="btn_gpx">导入GPX</string>
+    <string name="btn_random">随机位置</string>
+    <string name="btn_settings">设置</string>
+    <string name="save_location_title">保存位置</string>
+    <string name="load_location_title">加载位置</string>
+    <string name="settings_title">设置</string>
     <string name="update_interval">更新间隔</string>
-    <string name="movement_speed">移动速度</string>
-    <string name="trajectory_type">轨迹类型</string>
-
-    <string name="save">保存</string>
-    <string name="cancel">取消</string>
-    <string name="delete">删除</string>
-    <string name="start_trajectory">开始轨迹</string>
-
-    <string name="location">位置</string>
+    <string name="move_step">移动步长</string>
     <string name="location_saved">位置已保存</string>
-    <string name="location_deleted">位置已删除</string>
     <string name="location_loaded">位置已加载</string>
-    <string name="location_updated">位置已更新</string>
     <string name="no_saved_locations">没有保存的位置</string>
+    <string name="joystick_hint">拖动摇杆移动位置</string>
+    <string name="joystick_mode">摇杆模式</string>
+    <string name="exit_joystick">退出摇杆</string>
+    <string name="random_location">随机位置</string>
     <string name="invalid_coordinates">无效的坐标格式</string>
-    <string name="trajectory_started">轨迹模拟已启动</string>
-    <string name="point_count">点数: %d</string>
-    <string name="point_progress">进度: %d/%d</string>
-
-    <string-array name="trajectory_types">
-        <item>圆形轨迹</item>
-        <item>方形轨迹</item>
-        <item>直线轨迹</item>
-    </string-array>
+    <string name="latitude_hint">请输入纬度 (-90 ~ 90)</string>
+    <string name="longitude_hint">请输入经度 (-180 ~ 180)</string>
 </resources>

@@ -3,19 +3,17 @@ plugins {
 }
 
 android {
-    namespace 'com.example.xd'
-    compileSdk 32
+    namespace 'com.mockgps.app'
+    compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.xd"
+        applicationId "com.mockgps.app"
         minSdk 29
-        targetSdk 32
-        versionCode 2
-        versionName "2.0.0"
+        targetSdk 34
+        versionCode 3
+        versionName "3.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        resourceConfigurations += ["en", "zh-rCN"]
     }
 
     buildTypes {
@@ -38,17 +36,11 @@ android {
             include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
             universalApk true
         }
-        language {
-            enable true
-            reset()
-            include "en", "zh-rCN"
-            customDimension "locale"
-        }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
 
     lint {
@@ -58,27 +50,27 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation 'com.google.android.material:material:1.5.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
-    implementation 'com.google.code.gson:gson:2.8.9'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'androidx.core:core:1.12.0'
+    implementation 'androidx.activity:activity:1.8.2'
+    implementation 'androidx.coordinatorlayout:coordinatorlayout:1.2.0'
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
 applicationVariants.configureEach { variant ->
     variant.outputs.each { output ->
         def abi = output.getFilter(com.android.build.OutputFile.ABI)
-        def locale = output.getFilter(com.android.build.OutputFile.LOCALE)
         def versionName = variant.versionName
 
-        if (abi != null && locale != null) {
-            output.outputFileName = "xd-mock-gps_${versionName}_${locale}_${abi}.apk"
-        } else if (abi != null) {
-            output.outputFileName = "xd-mock-gps_${versionName}_${abi}.apk"
-        } else if (locale != null) {
-            output.outputFileName = "xd-mock-gps_${versionName}_${locale}.apk"
+        if (abi != null) {
+            output.outputFileName = "MockGPS_${versionName}_${abi}.apk"
+        } else {
+            output.outputFileName = "MockGPS_${versionName}.apk"
         }
     }
 }
