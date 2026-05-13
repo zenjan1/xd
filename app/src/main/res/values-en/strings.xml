@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">XD Mock GPS</string>
+
+    <string name="textview">Select mock app xd:</string>
+    <string name="tv_system_mock_position_status">Mock location status</string>
+    <string name="btn_start_mock">Start Mock</string>
+    <string name="btn_stop_mock">Stop Mock</string>
+    <string name="tv_provider">Provider</string>
+    <string name="tv_latitude">Latitude</string>
+    <string name="tv_longitude">Longitude</string>
+    <string name="tv_altitude">Altitude</string>
+    <string name="tv_bearing">Bearing</string>
+    <string name="tv_speed">Speed</string>
+    <string name="tv_accuracy">Accuracy</string>
+    <string name="tv_time">Time</string>
+    <string name="input_latitude">Enter latitude</string>
+    <string name="input_longitude">Enter longitude</string>
+    <string name="btn_SaveLoc">Save Location</string>
+    <string name="btn_manage_locations">Manage Locations</string>
+    <string name="btn_trajectory">Trajectory</string>
+    <string name="tv_trajectory_status">Status</string>
+    <string name="tv_point_count">Points</string>
+
+    <string name="status_disabled">Disabled</string>
+    <string name="status_enabled">Enabled</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="single_point_mode">Single Point Mode</string>
+    <string name="trajectory_running">Trajectory Running</string>
+
+    <string name="save_location">Save Location</string>
+    <string name="manage_locations">Manage Saved Locations</string>
+    <string name="delete_location">Delete Location</string>
+    <string name="trajectory_mode">Trajectory Simulation</string>
+
+    <string name="location_name_hint">Location name</string>
+    <string name="coordinates_format">Coords: %.8f, %.8f</string>
+    <string name="center_latitude">Center latitude</string>
+    <string name="center_longitude">Center longitude</string>
+    <string name="radius_meters">Radius (meters)</string>
+    <string name="update_interval">Update interval</string>
+    <string name="movement_speed">Movement speed</string>
+    <string name="trajectory_type">Trajectory type</string>
+
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="start_trajectory">Start Trajectory</string>
+
+    <string name="location">Location</string>
+    <string name="location_saved">Location saved</string>
+    <string name="location_deleted">Location deleted</string>
+    <string name="location_loaded">Location loaded</string>
+    <string name="location_updated">Location updated</string>
+    <string name="no_saved_locations">No saved locations</string>
+    <string name="invalid_coordinates">Invalid coordinate format</string>
+    <string name="trajectory_started">Trajectory started</string>
+    <string name="point_count">Points: %d</string>
+    <string name="point_progress">Progress: %d/%d</string>
+
+    <string-array name="trajectory_types">
+        <item>Circle Path</item>
+        <item>Rectangle Path</item>
+        <item>Line Path</item>
+    </string-array>
+</resources>

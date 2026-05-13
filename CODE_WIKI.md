@@ -1,33 +1,33 @@
-# XD GPS位置模拟应用 - Code Wiki
+# XD Mock GPS - Code Wiki
 
 ## 1. 项目概述
 
 ### 1.1 项目简介
 
-XD是一个基于Android Studio开发的GPS位置模拟应用程序。该应用允许用户在Android设备上模拟GPS位置信息，主要功能包括：
+XD Mock GPS是一个功能丰富的Android GPS位置模拟应用程序，基于Android Studio开发。该应用允许用户在Android设备上模拟GPS位置信息，支持单点定位、轨迹模拟和位置管理等功能。
 
-- 启动/停止位置模拟
-- 自定义输入模拟位置的经纬度
-- 实时显示位置信息（纬度、经度、高度、方向、速度、精度等）
-- 保存当前位置功能（待完善）
+### 1.2 核心功能
 
-### 1.2 项目信息
+| 功能 | 说明 |
+|------|------|
+| 单点位置模拟 | 输入经纬度，模拟固定GPS位置 |
+| 轨迹模拟 | 支持圆形、方形、直线等多种轨迹模式 |
+| 位置管理 | 保存、加载、删除常用位置 |
+| 多语言支持 | 中文、英文 |
+| 多架构支持 | ARM、x86等主流CPU架构 |
+
+### 1.3 项目信息
 
 | 属性 | 值 |
 |------|-----|
 | 应用包名 | com.example.xd |
+| 当前版本 | 2.0.0 |
+| 版本代码 | 2 |
 | 最低SDK版本 | 29 (Android 10) |
 | 目标SDK版本 | 32 (Android 12L) |
 | 构建工具版本 | Android Gradle Plugin 7.3.1 |
-| Gradle版本 | 7.6 |
+| Gradle版本 | 8.14.4 |
 | Java版本 | 1.8 |
-
-### 1.3 技术栈
-
-- **开发语言**: Java
-- **UI框架**: Android View系统 + ConstraintLayout
-- **依赖库**: AndroidX AppCompat, Material Design Components, ConstraintLayout
-- **构建系统**: Gradle 7.6 + Android Gradle Plugin 7.3.1
 
 ---
 
@@ -37,215 +37,255 @@ XD是一个基于Android Studio开发的GPS位置模拟应用程序。该应用�
 
 ```
 /workspace/
-├── app/                          # 应用模块
-│   ├── src/
-│   │   ├── main/
-│   │   │   ├── java/com/example/xd/
-│   │   │   │   └── MainActivity.java      # 主活动类
-│   │   │   ├── res/
-│   │   │   │   ├── layout/
-│   │   │   │   │   └── activity_main.xml  # 主界面布局
-│   │   │   │   ├── values/
-│   │   │   │   │   ├── strings.xml         # 字符串资源
-│   │   │   │   │   ├── colors.xml          # 颜色资源
-│   │   │   │   │   └── themes.xml          # 主题样式
-│   │   │   │   ├── values-night/           # 夜间模式主题
-│   │   │   │   ├── drawable/              # 可绘制资源
-│   │   │   │   ├── mipmap-*/              # 应用图标
-│   │   │   │   └── xml/                   # 备份规则
-│   │   │   └── AndroidManifest.xml        # 应用清单
-│   │   └── test/                          # 单元测试
-│   ├── build.gradle                       # 应用级构建配置
-│   └── proguard-rules.pro                 # ProGuard规则
+├── app/
+│   ├── src/main/
+│   │   ├── java/com/example/xd/
+│   │   │   ├── MainActivity.java          # 主活动类
+│   │   │   ├── MockLocation.java          # 位置数据模型
+│   │   │   ├── LocationStorage.java       # 位置持久化存储
+│   │   │   └── TrajectorySimulator.java   # 轨迹模拟器
+│   │   ├── res/
+│   │   │   ├── layout/
+│   │   │   │   ├── activity_main.xml      # 主界面布局
+│   │   │   │   ├── dialog_save_location.xml  # 保存位置对话框
+│   │   │   │   └── dialog_trajectory.xml  # 轨迹设置对话框
+│   │   │   ├── values/
+│   │   │   │   ├── strings.xml            # 中文字符串
+│   │   │   │   ├── colors.xml             # 颜色资源
+│   │   │   │   └── themes.xml             # 主题样式
+│   │   │   └── values-en/
+│   │   │       └── strings.xml            # 英文字符串
+│   │   └── AndroidManifest.xml           # 应用清单
+│   └── build.gradle                       # 应用级构建配置
 ├── build.gradle                           # 项目级构建配置
 ├── settings.gradle                        # Gradle设置
 ├── gradle.properties                      # Gradle属性
-└── gradlew / gradlew.bat                  # Gradle包装脚本
+├── build.sh                              # 构建脚本
+├── BUILD_INSTRUCTIONS.md                  # 构建说明
+└── CODE_WIKI.md                          # 代码文档
 ```
 
 ### 2.2 架构模式
 
-本项目采用简单的**单活动架构**，所有功能都集中在`MainActivity`类中实现：
+本项目采用分层架构设计：
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    MainActivity                      │
-│  ┌─────────────┬─────────────┬────────────────────┐ │
-│  │  UI组件层   │  业务逻辑层  │    位置服务层      │ │
-│  │  (Views)   │  (Handlers) │  (LocationManager) │ │
-│  └─────────────┴─────────────┴────────────────────┘ │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      Presentation Layer                     │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  MainActivity.java                                    │ │
+│  │  - UI组件初始化与管理                                  │ │
+│  │  - 用户交互处理                                        │ │
+│  │  - 对话框展示                                          │ │
+│  └───────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                       Service Layer                         │
+│  ┌────────────────────┐  ┌────────────────────────────┐   │
+│  │ LocationStorage    │  │ TrajectorySimulator        │   │
+│  │ - SharedPreferences│  │ - 轨迹点管理                │   │
+│  │ - Gson序列化       │  │ - 路径生成算法              │   │
+│  │ - 位置CRUD操作     │  │ - 插值计算                  │   │
+│  └────────────────────┘  └────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                        Data Layer                           │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  MockLocation.java                                    │ │
+│  │  - 位置数据模型                                        │ │
+│  │  - Serializable序列化支持                             │ │
+│  └───────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 3. 核心模块详解
 
-### 3.1 MainActivity 核心类
+### 3.1 MockLocation - 位置数据模型
 
-**文件路径**: `/workspace/app/src/main/java/com/example/xd/MainActivity.java`
-
-#### 3.1.1 类职责
-
-`MainActivity`是应用的主入口，负责：
-
-- 管理应用UI生命周期
-- 处理用户权限申请
-- 控制GPS位置模拟的启动/停止
-- 实时更新和显示位置信息
-
-#### 3.1.2 核心成员变量
-
-| 变量名 | 类型 | 说明 |
-|--------|------|------|
-| `locationManager` | `LocationManager` | 位置管理器，负责GPS操作 |
-| `mockProviders` | `List` | 模拟位置的提供者列表 |
-| `hasAddTestProvider` | `boolean` | 标记是否已成功添加测试提供者 |
-| `bRun` | `boolean` | 模拟位置运行状态标识 |
-| `iLatitude` | `double` | 模拟位置纬度（默认：38.56621628） |
-| `iLongitude` | `double` | 模拟位置经度（默认：113.02837638） |
-| `iAltitude` | `double` | 模拟位置高度（默认：723.70837402米） |
-| `iBearing` | `float` | 方向角度（默认：0.0°） |
-| `iSpeed` | `float` | 移动速度（默认：0.0m/s） |
-| `iAccuracy` | `float` | 精度（默认：4.288米） |
-
-#### 3.1.3 核心方法说明
-
-##### 生命周期方法
-
-| 方法 | 说明 |
-|------|------|
-| `onCreate()` | 初始化UI组件，设置按钮点击监听器，启动模拟位置线程 |
-| `onPostResume()` | 检查系统是否允许模拟位置，更新UI状态，注册位置监听 |
-| `onPause()` | 移除位置更新监听 |
-| `onDestroy()` | 停止模拟位置，清理资源 |
-
-##### 权限管理
-
-**`initPermissions(Context context)`**
-
-动态申请位置相关权限：
-- `ACCESS_FINE_LOCATION` - 精确位置权限
-- `ACCESS_COARSE_LOCATION` - 粗略位置权限
-- `ACCESS_MOCK_LOCATION` - 模拟位置权限
-
-**`RequestPermissions(Context context, String permission)`**
-
-检查并申请指定权限，返回授权状态。
-
-##### 位置模拟核心
-
-**`initService(Context context)`**
-
-初始化位置模拟服务：
-- 创建`LocationManager`实例
-- 配置模拟提供者（默认使用GPS_PROVIDER）
-- 调用`stopMockLocation()`确保清理残留状态
-
-**`getUseMockPosition()`**
-
-检查模拟位置是否可用并配置测试提供者：
+**文件路径**: `/workspace/app/src/main/java/com/example/xd/MockLocation.java`
 
 ```java
-// Android 6.0以下：通过Settings.Secure.ALLOW_MOCK_LOCATION判断
-// Android 6.0及以上：需在"选择模拟位置应用"中选当前应用
-// 通过addTestProvider是否成功判断模拟位置是否可用
-```
-
-**`stopMockLocation()`**
-
-停止位置模拟，移除测试提供者，防止影响系统GPS功能。
-
-##### 后台线程
-
-**`RunnableMockLocation` (内部类)**
-
-后台线程，每秒更新一次模拟位置数据：
-
-```java
-while (true) {
-    Thread.sleep(1000);
-    if (hasAddTestProvider && bRun) {
-        // 创建mockLocation并设置属性
-        locationManager.setTestProviderLocation(provider, mockLocation);
-    }
+public class MockLocation implements Serializable {
+    private long id;           // 唯一标识
+    private String name;      // 位置名称
+    private double latitude;   // 纬度
+    private double longitude;  // 经度
+    private double altitude;   // 高度(米)
+    private float bearing;     // 方向角度
+    private float speed;       // 速度(米/秒)
+    private float accuracy;    // 精度(米)
+    private long createTime;   // 创建时间戳
+    private String description;// 描述
 }
 ```
 
-##### 位置监听器
+**核心方法**:
+| 方法 | 说明 |
+|------|------|
+| `getFormattedLocation()` | 返回格式化的经纬度字符串 |
+| `toString()` | 返回位置名称或坐标 |
 
-**`locationListener` (匿名内部类)**
+### 3.2 LocationStorage - 位置存储管理
 
-实现`LocationListener`接口，实时更新UI显示：
+**文件路径**: `/workspace/app/src/main/java/com/example/xd/LocationStorage.java`
 
-- `onLocationChanged()` - 位置变化时更新界面显示
-- `onStatusChanged()` - 提供者状态变化回调
-- `onProviderEnabled()` - 提供者启用回调
-- `onProviderDisabled()` - 提供者禁用回调
+**职责**: 管理位置数据的持久化存储
+
+**核心方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `saveLocation(MockLocation)` | 保存新位置 |
+| `saveLocationWithName(String, ...)` | 带名称保存位置 |
+| `getAllLocations()` | 获取所有保存的位置 |
+| `deleteLocation(long id)` | 删除指定位置 |
+| `updateLocation(MockLocation)` | 更新位置信息 |
+| `saveLastUsedLocation(...)` | 保存最后使用的位置 |
+| `getLastUsedLocation()` | 获取最后使用的位置 |
+| `setTrajectoryEnabled(boolean)` | 设置轨迹模式开关 |
+| `setTrajectoryInterval(long)` | 设置轨迹更新间隔 |
+| `setTrajectorySpeed(float)` | 设置轨迹移动速度 |
+
+**存储方式**: SharedPreferences + Gson序列化
+
+### 3.3 TrajectorySimulator - 轨迹模拟器
+
+**文件路径**: `/workspace/app/src/main/java/com/example/xd/TrajectorySimulator.java`
+
+**核心内部类**: `TrajectoryPoint`
+
+```java
+public static class TrajectoryPoint {
+    public double latitude;
+    public double longitude;
+    public double altitude;
+    public float bearing;
+    public float speed;
+    public float accuracy;
+}
+```
+
+**轨迹生成方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `generateCirclePath(centerLat, centerLon, radius, numPoints)` | 生成圆形轨迹 |
+| `generateRectanglePath(centerLat, centerLon, width, height, pointsPerSide)` | 生成方形轨迹 |
+| `generateLinePath(startLat, startLon, endLat, endLon, numPoints)` | 生成直线轨迹 |
+
+**控制方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `start()` | 开始轨迹模拟 |
+| `stop()` | 停止轨迹模拟 |
+| `reset()` | 重置到起点 |
+| `getNextPoint()` | 获取下一个轨迹点 |
+| `hasMorePoints()` | 检查是否还有更多点 |
+| `interpolate(p1, p2, ratio)` | 两点间插值计算 |
+
+**距离计算**:
+
+```java
+// 计算两点间地球表面距离（米）
+float distance = calculateDistance(point1, point2);
+
+// 计算总轨迹距离
+double totalDistance = calculateTotalDistance();
+```
+
+### 3.4 MainActivity - 主活动类
+
+**文件路径**: `/workspace/app/src/main/java/com/example/xd/MainActivity.java`
+
+#### 核心成员变量
+
+| 变量 | 类型 | 说明 |
+|------|------|------|
+| `locationManager` | `LocationManager` | 位置管理器 |
+| `locationStorage` | `LocationStorage` | 位置存储实例 |
+| `trajectorySimulator` | `TrajectorySimulator` | 轨迹模拟器实例 |
+| `mockProviders` | `List` | 模拟位置提供者列表 |
+| `bRun` | `boolean` | 模拟运行状态 |
+| `trajectoryMode` | `boolean` | 轨迹模式开关 |
+| `trajectoryInterval` | `long` | 轨迹更新间隔(ms) |
+| `trajectorySpeed` | `float` | 轨迹移动速度(m/s) |
+
+#### 核心方法
+
+**生命周期方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `onCreate()` | 初始化组件和线程 |
+| `onPostResume()` | 检查模拟位置状态 |
+| `onPause()` | 移除位置监听 |
+| `onDestroy()` | 清理资源和停止模拟 |
+
+**位置模拟核心**:
+
+| 方法 | 说明 |
+|------|------|
+| `initService()` | 初始化位置服务 |
+| `getUseMockPosition()` | 检查并配置模拟提供者 |
+| `stopMockLocation()` | 停止位置模拟 |
+
+**对话框方法**:
+
+| 方法 | 说明 |
+|------|------|
+| `showSaveLocationDialog()` | 显示保存位置对话框 |
+| `showManageLocationsDialog()` | 显示管理位置对话框 |
+| `showTrajectoryDialog()` | 显示轨迹设置对话框 |
+
+**后台线程**: `RunnableMockLocation`
+
+每`trajectoryInterval`毫秒更新一次模拟位置数据，支持轨迹模式自动遍历轨迹点。
 
 ---
 
-## 4. 资源文件说明
+## 4. UI资源文件
 
-### 4.1 布局文件
+### 4.1 主界面布局
 
-**`activity_main.xml`**
+**`activity_main.xml`** - 采用ConstraintLayout布局
 
-主界面布局，采用ConstraintLayout约束布局，包含以下UI组件：
+主要区域:
+1. 顶部状态栏 - 显示模拟位置开关状态
+2. 按钮区 - 开始/停止/保存/管理/轨迹按钮
+3. 输入区 - 经纬度输入框
+4. 状态显示区 - 轨迹模式和点数
+5. 信息卡片 - 位置信息展示(时间、纬经度、高度等)
 
-| 组件ID | 类型 | 功能 |
-|--------|------|------|
-| `tv_system_mock_position_status` | TextView | 显示系统模拟位置开启状态 |
-| `btn_start_mock` | Button | 启动位置模拟按钮 |
-| `btn_stop_mock` | Button | 停止位置模拟按钮 |
-| `btn_SaveLoc` | Button | 保存当前位置按钮（功能待完善） |
-| `tv_provider` | TextView | 显示位置提供者名称 |
-| `tv_time` | TextView | 显示位置时间戳 |
-| `tv_latitude` | TextView | 显示纬度 |
-| `tv_longitude` | TextView | 显示经度 |
-| `tv_altitude` | TextView | 显示高度 |
-| `tv_bearing` | TextView | 显示方向 |
-| `tv_speed` | TextView | 显示速度 |
-| `tv_accuracy` | TextView | 显示精度 |
-| `input_latitude` | EditText | 输入模拟纬度 |
-| `input_longitude` | EditText | 输入模拟经度 |
+### 4.2 对话框布局
 
-### 4.2 字符串资源
+**`dialog_save_location.xml`**
+- 位置名称输入框
+- 当前坐标显示
 
-| 键名 | 值 |
-|------|-----|
-| `app_name` | "xd" |
-| `textview` | "选择模拟程序xd：" |
-| `tv_system_mock_position_status` | "系统是否开启模拟定位" |
-| `btn_start_mock` | "开始模拟" |
-| `btn_stop_mock` | "停止模拟" |
-| `tv_provider` | "提供者" |
-| `tv_latitude` | "纬度" |
-| `tv_longitude` | "经度" |
-| `tv_altitude` | "高度" |
-| `tv_bearing` | "方向" |
-| `tv_speed` | "速度" |
-| `tv_accuracy` | "精度" |
-| `tv_time` | "时间" |
-| `input_latitude` | "填写纬度" |
-| `input_longitude` | "填写经度" |
-| `btn_SaveLoc` | "保存当前位置" |
+**`dialog_trajectory.xml`**
+- 轨迹类型选择器
+- 中心点坐标输入
+- 半径输入
+- 更新间隔滑块
+- 移动速度滑块
 
-### 4.3 主题样式
+### 4.3 字符串资源
 
-**日间主题** (`themes.xml`)
-- 父主题: `Theme.MaterialComponents.DayNight.DarkActionBar`
-- 主色: `#FF6200EE` (紫色)
-- 次色: `#FF018786` (青色)
-
-**夜间主题** (`values-night/themes.xml`)
-- 主色: `#FFBB86FC` (浅紫色)
+| 文件 | 语言 | 说明 |
+|------|------|------|
+| `values/strings.xml` | 中文 | 默认语言 |
+| `values-en/strings.xml` | 英文 | 英文翻译 |
 
 ---
 
 ## 5. 权限配置
 
-### 5.1 AndroidManifest.xml 权限声明
+### 5.1 AndroidManifest.xml 权限
 
 ```xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -264,228 +304,125 @@ while (true) {
 | `ACCESS_BACKGROUND_LOCATION` | 后台位置访问 |
 | `ACCESS_MOCK_LOCATION` | 允许模拟位置（需在开发者选项中开启） |
 
-### 5.3 动态权限申请
-
-应用在`onCreate`中调用`initPermissions()`进行动态权限申请，需用户在运行时授权。
-
 ---
 
-## 6. 依赖关系
+## 6. 构建配置
 
-### 6.1 项目级 build.gradle
+### 6.1 build.gradle 配置
+
+**多版本构建**:
 
 ```groovy
-plugins {
-    id 'com.android.application' version '7.3.1' apply false
-    id 'com.android.library' version '7.3.1' apply false
+splits {
+    abi {
+        enable true
+        include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        universalApk true
+    }
+    language {
+        enable true
+        include "en", "zh-rCN"
+    }
 }
 ```
 
-### 6.2 应用级 build.gradle 依赖
+**依赖库**:
 
 | 库 | 版本 | 用途 |
 |----|------|------|
-| `androidx.appcompat:appcompat` | 1.4.1 | AndroidX兼容性支持库 |
-| `com.google.android.material:material` | 1.5.0 | Material Design组件 |
+| `androidx.appcompat:appcompat` | 1.4.1 | 兼容性支持 |
+| `com.google.android.material:material` | 1.5.0 | Material Design |
 | `androidx.constraintlayout:constraintlayout` | 2.1.3 | 约束布局 |
-| `junit:junit` | 4.13.2 | 单元测试框架 |
-| `androidx.test.ext:junit` | 1.1.3 | AndroidJUnit测试扩展 |
-| `androidx.test.espresso:espresso-core` | 3.4.0 | UI自动化测试框架 |
+| `com.google.code.gson:gson` | 2.8.9 | JSON序列化 |
 
-### 6.3 依赖关系图
+### 6.2 ProGuard规则
+
+已配置Gson序列化类的混淆规则，确保位置数据正确序列化和反序列化。
+
+---
+
+## 7. 功能使用说明
+
+### 7.1 单点位置模拟
+
+1. 输入目标纬度和经度
+2. 点击"开始模拟"
+3. 观察右侧位置信息更新
+4. 点击"停止模拟"结束
+
+### 7.2 保存和管理位置
+
+1. 调整到想要保存的位置
+2. 点击"保存位置"
+3. 输入位置名称
+4. 点击"管理位置"可查看/加载/删除已保存位置
+
+### 7.3 轨迹模拟
+
+1. 点击"轨迹模拟"
+2. 选择轨迹类型（圆形/方形/直线）
+3. 设置中心点坐标和半径
+4. 调整更新间隔和移动速度
+5. 点击"开始轨迹"
+6. 观察位置沿轨迹移动
+
+---
+
+## 8. 依赖关系图
 
 ```
 ┌─────────────────────────────────────────────┐
 │              应用模块 (app)                   │
 ├─────────────────────────────────────────────┤
-│  androidx.appcompat:appcompat:1.4.1         │
-│  ├── androidx.annotation:annotation       │
-│  ├── androidx.fragment:fragment            │
-│  └── androidx.core:core                    │
+│  com.google.code.gson:gson:2.8.9           │
+│  └── (用于位置数据序列化)                     │
 ├─────────────────────────────────────────────┤
 │  com.google.android.material:material:1.5.0│
-│  ├── com.google.android.material:theming  │
-│  └── androidx.constraintlayout:constraint  │
+│  ├── Material Design 组件                   │
+│  └── TextInputLayout                        │
 ├─────────────────────────────────────────────┤
-│  androidx.constraintlayout:2.1.3            │
-│  └── androidx.annotation:annotation       │
+│  androidx.constraintlayout:2.1.3           │
+│  └── ConstraintLayout 布局                 │
+├─────────────────────────────────────────────┤
+│  androidx.appcompat:appcompat:1.4.1        │
+│  ├── Activity 兼容性                        │
+│  └── DialogFragment 支持                    │
 └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. 构建与运行
+## 9. 版本历史
 
-### 7.1 环境要求
-
-- Android Studio Arctic Fox (2020.3.1) 或更高版本
-- JDK 1.8+
-- Android SDK 32
-- 支持的设备：Android 10 (API 29) 及以上
-
-### 7.2 构建命令
-
-```bash
-# 使用Gradle Wrapper构建调试版本
-./gradlew assembleDebug
-
-# 构建发布版本
-./gradlew assembleRelease
-
-# 清理并重新构建
-./gradlew clean assembleDebug
-
-# 运行单元测试
-./gradlew test
-```
-
-### 7.3 安装与运行
-
-1. 将生成的APK文件传输到Android设备
-2. 在设备上安装APK（需开启"安装未知来源应用"）
-3. 打开应用后，需手动在**开发者选项**中开启：
-   - **USB调试**
-   - **选择模拟位置信息应用** → 选择"xd"应用
-
-### 7.4 使用流程
-
-```
-1. 启动应用
-   ↓
-2. 应用申请位置权限 → 用户授权
-   ↓
-3. 手动在开发者选项中开启"选择模拟位置应用"并选择"xd"
-   ↓
-4. 在输入框填写纬度和经度（或输入1使用随机偏移位置）
-   ↓
-5. 点击"开始模拟"按钮
-   ↓
-6. 界面右侧实时显示模拟的GPS位置信息
-   ↓
-7. 点击"停止模拟"结束位置模拟
-```
-
-### 7.5 默认模拟位置
-
-应用默认模拟位置为：
-- **纬度**: 38.56621628°
-- **经度**: 113.02837638°
-- **高度**: 723.70837402米
+| 版本 | 日期 | 变更内容 |
+|------|------|----------|
+| 1.0 | 2022-12-07 | 初始版本，基本位置模拟功能 |
+| 2.0 | 2026-05-13 | 新增轨迹模拟、位置管理、多语言、多ABI支持 |
 
 ---
 
-## 8. 已知限制与待完善功能
+## 10. 开发者注意事项
 
-### 8.1 已知的限制
+### 10.1 Android 10+兼容性
 
-1. **模拟位置需要手动开启**：Android 6.0及以上需要在开发者选项中选择"模拟位置应用"
-2. **Android 10+要求**：最低SDK设置为29，确保在Android 10设备上运行
-3. **后台位置**：虽然申请了后台位置权限，但应用未实现后台位置模拟功能
+- 最低SDK设置为29，确保在Android 10设备上运行
+- 使用`addTestProvider` API进行位置模拟
+- 需要用户在开发者选项中选择"模拟位置应用"
 
-### 8.2 待完善功能
+### 10.2 模拟位置开启步骤
 
-1. **保存位置功能** (`btn_SaveLoc`)：按钮已创建但功能未实现
-2. **位置列表管理**：未实现保存/加载多个模拟位置
-3. **地图显示**：未集成地图组件显示模拟位置
-4. **连续轨迹模拟**：仅支持单点位置模拟，未支持路径模拟
-
----
-
-## 9. 代码流程图
-
-### 9.1 应用启动流程
-
-```
-┌────────────────┐
-│    启动应用     │
-└────────┬───────┘
-         ↓
-┌────────────────┐
-│   onCreate()   │
-├────────────────┤
-│ 1. setContentView()│
-│ 2. initViews()     │
-│ 3. setClickListeners│
-│ 4. initService()    │
-│ 5. initPermissions()│
-│ 6. start Thread     │
-└────────┬───────┘
-         ↓
-┌────────────────┐
-│ onPostResume() │
-├────────────────┤
-│ 1. getUseMockPosition()│
-│ 2. 更新按钮状态      │
-│ 3. requestLocationUpdates()│
-└────────┬───────┘
-         ↓
-┌────────────────┐
-│    应用就绪    │
-└────────────────┘
-```
-
-### 9.2 位置模拟流程
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    后台模拟线程                            │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │  while (bRun) {                                     │ │
-│  │      if (hasAddTestProvider && bRun) {            │ │
-│  │          // 1. 创建Location对象                     │ │
-│  │          // 2. 设置经纬度/高度/速度等属性             │ │
-│  │          // 3. setTestProviderLocation()           │ │
-│  │      }                                             │ │
-│  │      Thread.sleep(1000);                           │ │
-│  │  }                                                 │ │
-│  └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────┐
-│                  LocationListener回调                     │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │  onLocationChanged(Location location) {           │ │
-│  │      // 更新UI显示：纬度、经度、高度、速度等          │ │
-│  │  }                                                 │ │
-│  └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 10. 常见问题
-
-### Q1: 模拟位置不生效？
-
-**原因**：Android 6.0+需要在开发者选项中选择"模拟位置应用"
-
-**解决**：
 1. 进入**设置 → 开发者选项**
-2. 找到**选择模拟位置信息应用**
-3. 选择"xd"应用
+2. 启用**USB调试**（如需要）
+3. 找到**选择模拟位置信息应用**
+4. 选择**xd**应用
 
-### Q2: 为什么需要位置权限？
+### 10.3 性能优化建议
 
-**原因**：应用需要获取真实位置权限才能使用`LocationManager`的测试提供者功能。
-
-### Q3: 应用在后台时模拟位置是否生效？
-
-**当前状态**：应用仅实现了前台位置模拟，后台模拟功能待开发。
-
----
-
-## 11. 版本信息
-
-| 项目 | 版本 |
-|------|------|
-| 应用版本 | 1.0 |
-| versionCode | 1 |
-| Gradle | 7.6 |
-| Android Gradle Plugin | 7.3.1 |
-| compileSdk | 32 |
-| minSdk | 29 |
-| targetSdk | 32 |
+- 轨迹更新间隔不宜过短（建议≥1000ms）
+- 轨迹点数根据需求合理设置
+- 不使用时及时停止模拟节省电量
 
 ---
 
 *文档生成时间: 2026-05-13*
+*项目版本: 2.0.0*

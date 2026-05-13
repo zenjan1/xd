@@ -3,7 +3,9 @@ package com.example.xd;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
@@ -12,12 +14,22 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,42 +40,363 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 
 public class MainActivity extends Activity {
+    private static final String TAG = "MockLocationApp";
+    private LocationStorage locationStorage;
+    private TrajectorySimulator trajectorySimulator;
+    private Handler trajectoryHandler;
 
-    private TextView tvSystemMockPositionStatus = null;
+    private TextView tvSystemMockPositionStatus;
+    private Button btnStartMock;
+    private Button btnStopMock;
+    private Button btnSaveLoc;
+    private Button btnManageLocations;
+    private Button btnTrajectory;
+    private TextView tvProvider;
+    private TextView tvTime;
+    private TextView tvLatitude;
+    private TextView tvLongitude;
+    private TextView tvAltitude;
+    private TextView tvBearing;
+    private TextView tvSpeed;
+    private TextView tvAccuracy;
+    private EditText inputLatitude;
+    private EditText inputLongitude;
+    private TextView tvTrajectoryStatus;
+    private TextView tvPointCount;
 
-    private Button btnStartMock = null;
+    private double iLongitude = 113.02837638;
+    private double iLatitude = 38.56621628;
+    private double iAltitude = 723.70837402;
+    private float iBearing = 0.0f;
+    private float iSpeed = 0.0f;
+    private float iAccuracy = 4.288f;
 
-    private Button btnStopMock = null;
+    private LocationManager locationManager;
+    private List mockProviders;
+    private boolean hasAddTestProvider = true;
+    private boolean bRun = false;
+    private boolean trajectoryMode = false;
+    private long trajectoryInterval = 2000;
+    private float trajectorySpeed = 10.0f;
+    private float trajectoryProgress = 0f;
 
-    private Button btn_SaveLoc = null;
-    private TextView tvProvider = null;
+    public LocationManager getLocationManager() {
+        return locationManager;
+    }
 
-    private TextView tvTime = null;
+    public List getMockProviders() {
+        return mockProviders;
+    }
 
-    private TextView tvLatitude = null;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-    private TextView tvLongitude = null;
+        locationStorage = new LocationStorage(this);
+        trajectorySimulator = new TrajectorySimulator();
+        trajectoryHandler = new Handler();
 
-    private TextView tvAltitude = null;
+        initViews();
+        loadLastLocation();
+        setupListeners();
+        initService(this);
+        initPermissions(this);
+        new Thread(new RunnableMockLocation()).start();
+    }
 
-    private TextView tvBearing = null;
+    private void initViews() {
+        tvSystemMockPositionStatus = findViewById(R.id.tv_system_mock_position_status);
+        btnStartMock = findViewById(R.id.btn_start_mock);
+        btnStopMock = findViewById(R.id.btn_stop_mock);
+        btnSaveLoc = findViewById(R.id.btn_SaveLoc);
+        btnManageLocations = findViewById(R.id.btn_manage_locations);
+        btnTrajectory = findViewById(R.id.btn_trajectory);
+        tvProvider = findViewById(R.id.tv_provider);
+        tvTime = findViewById(R.id.tv_time);
+        tvLatitude = findViewById(R.id.tv_latitude);
+        tvLongitude = findViewById(R.id.tv_longitude);
+        tvAltitude = findViewById(R.id.tv_altitude);
+        tvBearing = findViewById(R.id.tv_bearing);
+        tvSpeed = findViewById(R.id.tv_speed);
+        tvAccuracy = findViewById(R.id.tv_accuracy);
+        inputLatitude = findViewById(R.id.input_latitude);
+        inputLongitude = findViewById(R.id.input_longitude);
+        tvTrajectoryStatus = findViewById(R.id.tv_trajectory_status);
+        tvPointCount = findViewById(R.id.tv_point_count);
+    }
 
-    private TextView tvSpeed = null;
+    private void loadLastLocation() {
+        double[] lastLoc = locationStorage.getLastUsedLocation();
+        iLatitude = lastLoc[0];
+        iLongitude = lastLoc[1];
+        iAltitude = lastLoc[2];
+        iBearing = (float) lastLoc[3];
+        iSpeed = (float) lastLoc[4];
+        iAccuracy = (float) lastLoc[5];
+        inputLatitude.setText(String.valueOf(iLatitude));
+        inputLongitude.setText(String.valueOf(iLongitude));
+    }
 
-    private TextView tvAccuracy = null;
-    private EditText inputLatitude = null;
-    private EditText inputLongitude = null;
-    /**
-     * 动态权限申请
-     */
+    private void saveCurrentLocation() {
+        locationStorage.saveLastUsedLocation(iLatitude, iLongitude, iAltitude, iBearing, iSpeed, iAccuracy);
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void setupListeners() {
+        btnStartMock.setOnClickListener(v -> {
+            if (getUseMockPosition()) {
+                parseInputLocation();
+                bRun = true;
+                trajectoryMode = false;
+                saveCurrentLocation();
+                btnStartMock.setEnabled(false);
+                btnStopMock.setEnabled(true);
+                tvTrajectoryStatus.setText(R.string.single_point_mode);
+            }
+        });
+
+        btnStopMock.setOnClickListener(v -> {
+            bRun = false;
+            trajectoryMode = false;
+            stopMockLocation();
+            btnStartMock.setEnabled(true);
+            btnStopMock.setEnabled(false);
+            tvTrajectoryStatus.setText(R.string.status_stopped);
+        });
+
+        btnSaveLoc.setOnClickListener(v -> showSaveLocationDialog());
+
+        btnManageLocations.setOnClickListener(v -> showManageLocationsDialog());
+
+        btnTrajectory.setOnClickListener(v -> showTrajectoryDialog());
+    }
+
+    private void parseInputLocation() {
+        try {
+            String latStr = inputLongitude.getText().toString().trim();
+            String lonStr = inputLatitude.getText().toString().trim();
+
+            if (latStr.equals("1") || lonStr.equals("1")) {
+                Random random = new Random();
+                for (int i = 0; i < 2; i++) {
+                    int number = random.nextInt(10);
+                    float v = Float.parseFloat(String.valueOf(number)) / 10000;
+                    iLatitude += v;
+                    iLongitude += v;
+                }
+            } else {
+                iLatitude = Double.parseDouble(latStr);
+                iLongitude = Double.parseDouble(lonStr);
+            }
+
+            inputLatitude.setText(String.valueOf(iLatitude));
+            inputLongitude.setText(String.valueOf(iLongitude));
+
+            if (trajectoryMode && trajectorySimulator.getPointCount() > 0) {
+                TrajectorySimulator.TrajectoryPoint point = trajectorySimulator.getCurrentPoint();
+                if (point != null) {
+                    iLatitude = point.latitude;
+                    iLongitude = point.longitude;
+                    iAltitude = point.altitude;
+                    iBearing = point.bearing;
+                    iSpeed = point.speed;
+                    iAccuracy = point.accuracy;
+                }
+            }
+
+            Toast.makeText(this, getString(R.string.location_updated), Toast.LENGTH_SHORT).show();
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, getString(R.string.invalid_coordinates), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void showSaveLocationDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.save_location);
+
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_save_location, null);
+        EditText nameInput = dialogView.findViewById(R.id.input_location_name);
+        TextView coordsText = dialogView.findViewById(R.id.tv_coordinates);
+        coordsText.setText(String.format(Locale.getDefault(),
+            getString(R.string.coordinates_format), iLatitude, iLongitude));
+
+        builder.setView(dialogView);
+        builder.setPositiveButton(R.string.save, (dialog, which) -> {
+            String name = nameInput.getText().toString().trim();
+            if (name.isEmpty()) {
+                name = getString(R.string.location) + "_" + System.currentTimeMillis();
+            }
+            locationStorage.saveLocationWithName(name, iLatitude, iLongitude,
+                iAltitude, iBearing, iSpeed, iAccuracy);
+            Toast.makeText(this, getString(R.string.location_saved), Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.show();
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void showManageLocationsDialog() {
+        List<MockLocation> locations = locationStorage.getAllLocations();
+
+        if (locations.isEmpty()) {
+            Toast.makeText(this, getString(R.string.no_saved_locations), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.manage_locations);
+
+        String[] names = new String[locations.size()];
+        for (int i = 0; i < locations.size(); i++) {
+            MockLocation loc = locations.get(i);
+            names[i] = loc.getName() + "\n" + loc.getFormattedLocation();
+        }
+
+        builder.setItems(names, (dialog, which) -> {
+            MockLocation selected = locations.get(which);
+            iLatitude = selected.getLatitude();
+            iLongitude = selected.getLongitude();
+            iAltitude = selected.getAltitude();
+            iBearing = selected.getBearing();
+            iSpeed = selected.getSpeed();
+            iAccuracy = selected.getAccuracy();
+            inputLatitude.setText(String.valueOf(iLatitude));
+            inputLongitude.setText(String.valueOf(iLongitude));
+            Toast.makeText(this, getString(R.string.location_loaded), Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNeutralButton(R.string.delete, (dialog, which) -> {
+            showDeleteLocationDialog(locations);
+        });
+
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.show();
+    }
+
+    private void showDeleteLocationDialog(List<MockLocation> locations) {
+        String[] names = new String[locations.size()];
+        final List<Long> ids = new ArrayList<>();
+        for (int i = 0; i < locations.size(); i++) {
+            MockLocation loc = locations.get(i);
+            names[i] = loc.getName();
+            ids.add(loc.getId());
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.delete_location);
+        builder.setItems(names, (dialog, which) -> {
+            locationStorage.deleteLocation(ids.get(which));
+            Toast.makeText(this, getString(R.string.location_deleted), Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.show();
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void showTrajectoryDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.trajectory_mode);
+
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_trajectory, null);
+
+        Spinner trajectoryType = dialogView.findViewById(R.id.spinner_trajectory_type);
+        SeekBar seekInterval = dialogView.findViewById(R.id.seek_interval);
+        SeekBar seekSpeed = dialogView.findViewById(R.id.seek_speed);
+        TextView tvInterval = dialogView.findViewById(R.id.tv_interval_value);
+        TextView tvSpeed = dialogView.findViewById(R.id.tv_speed_value);
+        EditText inputCenterLat = dialogView.findViewById(R.id.input_center_lat);
+        EditText inputCenterLon = dialogView.findViewById(R.id.input_center_lon);
+        EditText inputRadius = dialogView.findViewById(R.id.input_radius);
+
+        inputCenterLat.setText(String.valueOf(iLatitude));
+        inputCenterLon.setText(String.valueOf(iLongitude));
+
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
+            this, R.array.trajectory_types, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        trajectoryType.setAdapter(adapter);
+
+        seekInterval.setMax(90);
+        seekInterval.setProgress((int) ((trajectoryInterval - 1000) / 100));
+        tvInterval.setText(trajectoryInterval + "ms");
+
+        seekSpeed.setMax(90);
+        seekSpeed.setProgress((int) (trajectorySpeed - 1));
+        tvSpeed.setText(String.format(Locale.getDefault(), "%.1f m/s", trajectorySpeed));
+
+        seekInterval.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                trajectoryInterval = 1000 + progress * 100L;
+                tvInterval.setText(trajectoryInterval + "ms");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        seekSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                trajectorySpeed = 1.0f + progress;
+                tvSpeed.setText(String.format(Locale.getDefault(), "%.1f m/s", trajectorySpeed));
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        builder.setView(dialogView);
+        builder.setPositiveButton(R.string.start_trajectory, (dialog, which) -> {
+            try {
+                int type = trajectoryType.getSelectedItemPosition();
+                double centerLat = Double.parseDouble(inputCenterLat.getText().toString());
+                double centerLon = Double.parseDouble(inputCenterLon.getText().toString());
+                double radius = Double.parseDouble(inputRadius.getText().toString());
+
+                switch (type) {
+                    case 0:
+                        trajectorySimulator.generateCirclePath(centerLat, centerLon, radius, 36);
+                        break;
+                    case 1:
+                        trajectorySimulator.generateRectanglePath(centerLat, centerLon, radius, radius, 10);
+                        break;
+                    case 2:
+                        trajectorySimulator.generateLinePath(centerLat, centerLon,
+                            centerLat + 0.01, centerLon + 0.01, 20);
+                        break;
+                }
+
+                trajectorySimulator.start();
+                trajectoryMode = true;
+                bRun = true;
+                btnStartMock.setEnabled(false);
+                btnStopMock.setEnabled(true);
+
+                locationStorage.setTrajectoryInterval(trajectoryInterval);
+                locationStorage.setTrajectorySpeed(trajectorySpeed);
+
+                tvTrajectoryStatus.setText(R.string.trajectory_running);
+                tvPointCount.setText(getString(R.string.point_count, trajectorySimulator.getPointCount()));
+
+                Toast.makeText(this, getString(R.string.trajectory_started), Toast.LENGTH_SHORT).show();
+
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, getString(R.string.invalid_coordinates), Toast.LENGTH_SHORT).show();
+            }
+        });
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.show();
+    }
 
     private void initPermissions(Context context) {
-        RequestPermissions(context, "android.permission.ACCESS_FINE_LOCATION");
-        RequestPermissions(context, "android.permission.ACCESS_COARSE_LOCATION");
-        RequestPermissions(context, "android.permission.ACCESS_MOCK_LOCATION");
+        RequestPermissions(context, Manifest.permission.ACCESS_FINE_LOCATION);
+        RequestPermissions(context, Manifest.permission.ACCESS_COARSE_LOCATION);
+        RequestPermissions(context, Manifest.permission.ACCESS_MOCK_LOCATION);
     }
 
     public static boolean RequestPermissions(Context context, String permission) {
@@ -76,592 +409,203 @@ public class MainActivity extends Activity {
             return true;
         }
     }
-/**
- * 设置模拟经度纬度
- */
-    private double  iLongitude = 113.02837638;
-    private double  iLatitude = 38.56621628;
-    private double iAltitude = 723.70837402;
-    private float  iBearing = 0.0f;
-    private float   iSpeed = 0.0f;
-    private float  iAccuracy = 4.288F;
-
-
-
-    /**
-     * 位置管理器
-
-     */
-
-    private LocationManager locationManager = null;
-
-    public LocationManager getLocationManager() {
-
-        return locationManager;
-
-    }
-
-    /**
-     * 模拟位置的提供者
-
-     */
-
-    private List mockProviders = null;
-
-    public List getMockProviders() {
-
-        return mockProviders;
-
-    }
-
-    /**
-     * 是否成功addTestProvider，默认为true，软件启动时为防止意外退出导致未重置，重置一次
-     * Android 6.0系统以下，可以通过Setting.Secure.ALLOW_MOCK_LOCATION获取是否【允许模拟位置】，
-     * 当【允许模拟位置】开启时，可addTestProvider；
-     * Android 6.0系统及以上，弃用Setting.Secure.ALLOW_MOCK_LOCATION变量，没有【允许模拟位置】选项，
-     * 增加【选择模拟位置信息应用】，此时需要选择当前应用，才可以addTestProvider，
-     * 但未找到获取当前选择应用的方法，因此通过addTestProvider是否成功来判断是否可用模拟位置。
-
-     */
-
-    private boolean hasAddTestProvider = true;
-
-    /**
-     * 启动和停止模拟位置的标识
-
-     */
-
-    private boolean bRun = false;
-
-    @SuppressLint("ResourceType")
-    @Override
-
-    protected void onCreate(Bundle savedInstanceState) {
-
-        super.onCreate(savedInstanceState);
-
-        setContentView(R.layout.activity_main);
-
-        tvSystemMockPositionStatus = (TextView) findViewById(R.id.tv_system_mock_position_status);
-
-        btnStartMock = (Button) findViewById(R.id.btn_start_mock);
-
-        btnStopMock = (Button) findViewById(R.id.btn_stop_mock);
-        btn_SaveLoc = (Button) findViewById(R.id.btn_SaveLoc);
-
-        tvProvider = (TextView) findViewById(R.id.tv_provider);
-
-        tvTime = (TextView) findViewById(R.id.tv_time);
-
-        tvLatitude = (TextView) findViewById(R.id.tv_latitude);
-
-        tvLongitude = (TextView) findViewById(R.id.tv_longitude);
-
-        tvAltitude = (TextView) findViewById(R.id.tv_altitude);
-
-        tvBearing = (TextView) findViewById(R.id.tv_bearing);
-
-        tvSpeed = (TextView) findViewById(R.id.tv_speed);
-
-        tvAccuracy = (TextView) findViewById(R.id.tv_accuracy);
-
-
-        inputLatitude=(EditText)findViewById(R.id.input_latitude);
-        inputLongitude=(EditText)findViewById(R.id.input_longitude);
-
-
-
-        btnStartMock.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-
-            public void onClick(View view) {
-
-                if (getUseMockPosition()) {
-
-
-                    /**
-                     * 获取输入框内经纬度，如果输入1，则使用默认位置
-                     */
-                    if (Double.parseDouble(inputLongitude.getText().toString()) ==1) {
-
-                        // 生成 Random 对象
-                        Random random = new Random();
-                        for (int i = 0; i < 2; i++) {
-                            // 生成 0-9 随机整数
-                            int number = random.nextInt(10);
-
-                            float v = Float.parseFloat(String.valueOf(number)) / 10000;
-                            iLatitude =iLatitude+ v;
-                            iLongitude=iLongitude+ v;
-                        }
-                    }else{
-                            iLatitude = Double.parseDouble(inputLatitude.getText().toString());
-                            iLongitude = Double.parseDouble(inputLongitude.getText().toString());
-                            Toast.makeText(MainActivity.this, inputLatitude.getText().toString(),Toast.LENGTH_LONG).show();
-
-
-                    }
-                    inputLatitude.setText(String.valueOf(iLatitude));
-                    inputLongitude.setText(String.valueOf(iLongitude));
-
-                    bRun = true;
-                    btnStartMock.setEnabled(false);
-
-                    btnStopMock.setEnabled(true);
-
-
-                }
-
-            }
-
-        });
-
-        btnStopMock.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-
-            public void onClick(View view) {
-
-                bRun = false;
-
-                stopMockLocation();
-
-                btnStartMock.setEnabled(true);
-
-                btnStopMock.setEnabled(false);
-
-            }
-
-        });
-        //保存当前位置
-        btn_SaveLoc.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-
-            public void onClick(View view) {
-
-                //保存到列表
-
-
-                Location hereLoc=locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-
-            }
-
-        });
-
-        initService(this);
-
-      //模拟位置线程
-        new Thread(new RunnableMockLocation()).start();
-    }
 
     @Override
-
     protected void onPostResume() {
-
         super.onPostResume();
-
-        // 判断系统是否允许模拟位置，并addTestProvider
-
         if (getUseMockPosition() == false) {
-
             bRun = false;
-
             btnStartMock.setEnabled(false);
-
             btnStopMock.setEnabled(false);
-
-            tvSystemMockPositionStatus.setText("未开启");
-
+            tvSystemMockPositionStatus.setText(R.string.status_disabled);
         } else {
-
-            if (bRun) {
-
-                btnStartMock.setEnabled(false);
-
-                btnStopMock.setEnabled(true);
-
-            } else {
-
-                btnStartMock.setEnabled(true);
-
-                btnStopMock.setEnabled(false);
-
-            }
-
-            tvSystemMockPositionStatus.setText("已开启");
-
+            btnStartMock.setEnabled(!bRun);
+            btnStopMock.setEnabled(bRun);
+            tvSystemMockPositionStatus.setText(R.string.status_enabled);
         }
 
-// 注册位置服务，获取系统位置
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+            && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-
     }
 
     @Override
-
     protected void onPause() {
-
         locationManager.removeUpdates(locationListener);
-
         super.onPause();
-
     }
 
     @Override
-
     protected void onDestroy() {
-
         bRun = false;
-
+        trajectoryMode = false;
+        saveCurrentLocation();
         stopMockLocation();
-
         super.onDestroy();
-
     }
-
-    /**
-
-     * 初始化服务
-
-     * @param context
-
-     */
 
     private void initService(Context context) {
-
-/**
-
- * 模拟位置服务
-
- */
-
         mockProviders = new ArrayList<>();
-
         mockProviders.add(LocationManager.GPS_PROVIDER);
-
-// mockProviders.add(LocationManager.NETWORK_PROVIDER);
-
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-
-// 防止程序意外终止，没有停止模拟GPS
-
         stopMockLocation();
-
     }
 
-    /**
-
-     * 模拟位置是否启用
-
-     * 若启用，则addTestProvider
-
-     */
-
     public boolean getUseMockPosition() {
-
-// Android 6.0以下，通过Setting.Secure.ALLOW_MOCK_LOCATION判断
-
-// Android 6.0及以上，需要【选择模拟位置信息应用】，未找到方法，因此通过addTestProvider是否可用判断
-
-        boolean canMockPosition = (Settings.Secure.getInt(getContentResolver(), Settings.Secure.ALLOW_MOCK_LOCATION, 0) != 0)
-
-                || Build.VERSION.SDK_INT > 22;
+        boolean canMockPosition = (Settings.Secure.getInt(getContentResolver(),
+            Settings.Secure.ALLOW_MOCK_LOCATION, 0) != 0)
+            || Build.VERSION.SDK_INT > 22;
 
         if (canMockPosition && hasAddTestProvider == false) {
-
             try {
-
                 for (Object providerStr : mockProviders) {
-
                     LocationProvider provider = locationManager.getProvider((String) providerStr);
-
                     if (provider != null) {
-
                         locationManager.addTestProvider(
-
-                                provider.getName()
-
-                                , provider.requiresNetwork()
-
-                                , provider.requiresSatellite()
-
-                                , provider.requiresCell()
-
-                                , provider.hasMonetaryCost()
-
-                                , provider.supportsAltitude()
-
-                                , provider.supportsSpeed()
-
-                                , provider.supportsBearing()
-
-                                , provider.getPowerRequirement()
-
-                                , provider.getAccuracy());
-
+                            provider.getName(),
+                            provider.requiresNetwork(),
+                            provider.requiresSatellite(),
+                            provider.requiresCell(),
+                            provider.hasMonetaryCost(),
+                            provider.supportsAltitude(),
+                            provider.supportsSpeed(),
+                            provider.supportsBearing(),
+                            provider.getPowerRequirement(),
+                            provider.getAccuracy());
                     } else {
-
                         if (providerStr.equals(LocationManager.GPS_PROVIDER)) {
-
                             locationManager.addTestProvider(
-
-                                    (String) providerStr
-
-                                    , true, true, false, false, true, true, true
-
-                                    , Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
-
+                                (String) providerStr,
+                                true, true, false, false, true, true, true,
+                                Criteria.POWER_HIGH, Criteria.ACCURACY_FINE);
                         } else if (providerStr.equals(LocationManager.NETWORK_PROVIDER)) {
-
                             locationManager.addTestProvider(
-
-                                    (String) providerStr
-
-                                    , true, false, true, false, false, false, false
-
-                                    , Criteria.POWER_LOW, Criteria.ACCURACY_FINE);
-
+                                (String) providerStr,
+                                true, false, true, false, false, false, false,
+                                Criteria.POWER_LOW, Criteria.ACCURACY_FINE);
                         } else {
-
                             locationManager.addTestProvider(
-
-                                    (String) providerStr
-
-                                    , false, false, false, false, true, true, true
-
-                                    , Criteria.POWER_LOW, Criteria.ACCURACY_FINE);
-
+                                (String) providerStr,
+                                false, false, false, false, true, true, true,
+                                Criteria.POWER_LOW, Criteria.ACCURACY_FINE);
                         }
-
                     }
-
                     locationManager.setTestProviderEnabled((String) providerStr, true);
-
-                    locationManager.setTestProviderStatus((String) providerStr, LocationProvider.AVAILABLE, null, System.currentTimeMillis());
-
+                    locationManager.setTestProviderStatus((String) providerStr,
+                        LocationProvider.AVAILABLE, null, System.currentTimeMillis());
                 }
-
-                hasAddTestProvider = true; // 模拟位置可用
-
+                hasAddTestProvider = true;
                 canMockPosition = true;
-
             } catch (SecurityException e) {
-
                 canMockPosition = false;
-
             }
-
         }
 
         if (canMockPosition == false) {
-
             stopMockLocation();
-
         }
-
         return canMockPosition;
-
     }
-
-    /**
-
-     * 取消位置模拟，以免启用模拟数据后无法还原使用系统位置
-
-     * 若模拟位置未开启，则removeTestProvider将会抛出异常；
-
-     * 若已addTestProvider后，关闭模拟位置，未removeTestProvider将导致系统GPS无数据更新；
-
-     */
 
     public void stopMockLocation() {
-
         if (hasAddTestProvider) {
-
             for (Object provider : mockProviders) {
-
                 try {
-
                     locationManager.removeTestProvider((String) provider);
-
                 } catch (Exception ex) {
-
-// 此处不需要输出日志，若未成功addTestProvider，则必然会出错
-
-// 这里是对于非正常情况的预防措施
-
                 }
-
             }
-
             hasAddTestProvider = false;
-
         }
-
     }
 
-    /**
-
-     * 模拟位置线程
-
-     */
-
     private class RunnableMockLocation implements Runnable {
-
         @Override
-
         public void run() {
-
             while (true) {
-
                 try {
-
-                    Thread.sleep(1000);
-
+                    Thread.sleep(trajectoryInterval);
                     if (hasAddTestProvider == false) {
-
                         continue;
-
+                    }
+                    if (bRun == false) {
+                        stopMockLocation();
+                        continue;
                     }
 
-                    if (bRun == false) {
-
-                        stopMockLocation();
-
-                        continue;
-
+                    if (trajectoryMode && trajectorySimulator.hasMorePoints()) {
+                        TrajectorySimulator.TrajectoryPoint point = trajectorySimulator.getNextPoint();
+                        if (point != null) {
+                            iLatitude = point.latitude;
+                            iLongitude = point.longitude;
+                            iAltitude = point.altitude;
+                            iBearing = point.bearing;
+                            iSpeed = point.speed;
+                            iAccuracy = point.accuracy;
+                        }
+                        runOnUiThread(() -> {
+                            tvPointCount.setText(getString(R.string.point_progress,
+                                trajectorySimulator.getCurrentIndex() + 1,
+                                trajectorySimulator.getPointCount()));
+                        });
+                    } else if (trajectoryMode && !trajectorySimulator.hasMorePoints()) {
+                        trajectorySimulator.reset();
                     }
 
                     try {
-
-                       // 模拟位置(addTestProvider成功的前提下)
-
                         for (Object providerStr : mockProviders) {
-
                             Location mockLocation = new Location((String) providerStr);
-
-                            mockLocation.setLatitude(iLatitude ); // 纬度(度)
-
-                            mockLocation.setLongitude(iLongitude ); // 经度(度)
-
-                            mockLocation.setAltitude(iAltitude); // 高程(米)
-
-                            mockLocation.setBearing(iBearing); // 方向(度)
-
-                            mockLocation.setSpeed(iSpeed); //速度(米/秒)
-
-                            mockLocation.setAccuracy(iAccuracy); // 精度(米)
-
-                            mockLocation.setTime(new Date().getTime()); // 本地时间
+                            mockLocation.setLatitude(iLatitude);
+                            mockLocation.setLongitude(iLongitude);
+                            mockLocation.setAltitude(iAltitude);
+                            mockLocation.setBearing(iBearing);
+                            mockLocation.setSpeed(iSpeed);
+                            mockLocation.setAccuracy(iAccuracy);
+                            mockLocation.setTime(new Date().getTime());
 
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-
                                 mockLocation.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
-
                             }
-
                             locationManager.setTestProviderLocation((String) providerStr, mockLocation);
-
                         }
-
                     } catch (Exception e) {
-
-// 防止用户在软件运行过程中关闭模拟位置或选择其他应用
-
                         stopMockLocation();
-
                     }
-
                 } catch (InterruptedException e) {
-
                     e.printStackTrace();
-
                 } catch (Exception e) {
-
                     e.printStackTrace();
-
                 }
-
             }
-
         }
-
     }
 
     private LocationListener locationListener = new LocationListener() {
-
         @Override
-
         public void onLocationChanged(final Location location) {
-
-            try {
-
-                runOnUiThread(new Runnable() {
-
-                    @SuppressLint("SetTextI18n")
-                    @Override
-
-                    public void run() {
-
-                        tvProvider.setText(location.getProvider());
-
-                        tvTime.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(location.getTime())));
-
-
-                        tvLatitude.setText(location.getLatitude()+"°");
-
-                        tvLongitude.setText(location.getLongitude() +"°");
-
-                        tvAltitude.setText(location.getAltitude() +"m");
-
-                        tvBearing.setText(location.getBearing() +" °");
-
-                        tvSpeed.setText(location.getSpeed() +" m/s");
-
-                        tvAccuracy.setText(location.getAccuracy() +" m");
-
-                    }
-
-                });
-
-            } catch (Exception ex) {
-
-                ex.printStackTrace();
-
-            }
-
+            runOnUiThread(() -> {
+                tvProvider.setText(location.getProvider());
+                tvTime.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(location.getTime())));
+                tvLatitude.setText(String.format(Locale.getDefault(), "%.8f°", location.getLatitude()));
+                tvLongitude.setText(String.format(Locale.getDefault(), "%.8f°", location.getLongitude()));
+                tvAltitude.setText(String.format(Locale.getDefault(), "%.2f m", location.getAltitude()));
+                tvBearing.setText(String.format(Locale.getDefault(), "%.1f°", location.getBearing()));
+                tvSpeed.setText(String.format(Locale.getDefault(), "%.2f m/s", location.getSpeed()));
+                tvAccuracy.setText(String.format(Locale.getDefault(), "%.1f m", location.getAccuracy()));
+            });
         }
 
         @Override
-
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-
-        }
+        public void onStatusChanged(String provider, int status, Bundle extras) {}
 
         @Override
-
-        public void onProviderEnabled(String provider) {
-
-        }
+        public void onProviderEnabled(String provider) {}
 
         @Override
-
-        public void onProviderDisabled(String provider) {
-
-        }
-
+        public void onProviderDisabled(String provider) {}
     };
-
 }
